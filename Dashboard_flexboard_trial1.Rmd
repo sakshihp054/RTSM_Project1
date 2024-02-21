@@ -1,0 +1,194 @@
+---
+title: "PL Price Analysis Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme: united
+    runtime: shiny
+    navbar:
+        - {icon: "fa-solid fa-database", href:         "https://www.kaggle.com/datasets/thedevastator/unlock-profits-with-e-commerce-sales-data", align: right}
+        - { icon: "fa-github", href: "https://github.com/sakshihp054", align: right}
+        - { icon: "fa-linkedin", href: "https://www.linkedin.com/in/sakshi-patil-9969bb184/", align: right}
+
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(shiny)
+library(DT)
+library(moments)
+library(dplyr)
+library(psych)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+library(flextable)
+library(plotly)
+
+```
+
+```{r}
+data <- read.csv("D:/IIFT Trimester 3/RTSM/Data for dashboard/PL_March_2021.csv")
+#View(data)
+df <- read.csv("D:/IIFT Trimester 3/RTSM/Data for dashboard/PL_March_2021new.csv")
+
+if (any(is.na(df))) {
+  df <- na.omit(df)
+}
+
+```
+
+##  {.tabset}
+
+### Introduction {.tabset}
+
+```{r}
+    p("About:")
+    p("This dataset contains data on a variety of sales channels, including Shiprocket and INCREFF, as well as financial information on related expenses and profits.")
+    p("Data Source: [Kaggle](https://www.kaggle.com/datasets/thedevastator/unlock-profits-with-e-commerce-sales-data)")
+    p("In addition to this, there are MRPs across multiple stores like Ajio MRP, Amazon MRP, Amazon FBA MRP, Flipkart MRP, Limeroad MRP, Myntra MRP, and Paytm MRP.")
+    p("Also, there are transactional parameters like Date of sale, months, category, fulfilled by B2B, Status, Qty, Currency, and Gross amt.")
+    img(src = "D:/IIFT Trimester 3/RTSM/ecommerce_img.jpg", width = "500px", height = "500px", alt = "ecommerce_img")
+
+```
+
+### About the Data {.tabset}
+
+```{r}
+p("Data Contains below columns and data-types:")
+# Read data from Excel file
+excel_data <- readxl::read_excel("D:/IIFT Trimester 3/RTSM/Data_Information.xlsx")
+# Display data table
+datatable(excel_data)
+
+```
+
+### Descriptives of Data {.tabset}
+
+```{r}
+#Descriptives
+
+columns_to_keep <- c("Category","Amazon.FBA.MRP" ,"Amazon.MRP", "Myntra.MRP", "Ajio.MRP","Flipkart.MRP", "Limeroad.MRP","Paytm.MRP","Snapdeal.MRP")
+df_selected_columns <- subset(data, select = columns_to_keep)
+rdata_summary_extended = describe(df_selected_columns); rdata_summary_extended
+
+```
+
+### Inferentials of Data {.tabset .tabset-fade}
+
+#### T-test {.tabset .tabset-fade}
+```{r}
+
+t_test_result <- t.test(df$Amazon.MRP, df$Flipkart.MRP)
+t_test_result
+anova_result <- aov(Amazon.MRP ~ Flipkart.MRP, data = df)
+anova_result
+chi_square_test_result <- chisq.test(df$Amazon.MRP, df$Myntra.MRP)
+chi_square_test_result
+# Extract relevant information from the test result
+
+
+```
+
+
+
+#### Chi-Square {.tabset .tabset-fade}
+```{r}
+chi_square_test_result <- chisq.test(df$Amazon.MRP, df$Myntra.MRP)
+chi_square_test_result
+
+```
+
+## KPIDashboard {.tabset .tabset-fade}
+
+### Category distribution plot
+```{r}
+# Category distribution plot using ggplot
+categoryPlot <- ggplot(data, aes(x = Category)) +
+  geom_bar(fill = rainbow(5), color = "black") +
+  labs(title = "Category Distribution",
+       x = "Category",
+       y = "Count") +
+  theme_minimal()
+
+categoryPlot
+
+```
+
+### MRP Comparison
+```{r}
+# MRP Comparison plot using ggplot
+mrpComparisonPlot <- ggplot(data, aes(x = Category, y = Final.MRP.Old)) +
+  geom_bar(stat = "identity", fill = "green") +
+  labs(title = "MRP Comparison",
+       x = "Category",
+       y = "MRP.Old") +
+  theme(axis.text.x=element_text(angle=45,hjust=1))
+
+mrpComparisonPlot
+```
+
+### Weight vs. Final MRP
+```{r}
+# Weight vs. Final MRP scatter plot using ggplot
+weightVsMRPPlot <- ggplot(data, aes(x = Weight, y = Final.MRP.Old)) +
+  geom_point(color = "darkorange") +
+  labs(title = "Weight vs. Final MRP",
+       x = "Weight",
+       y = "Final MRP Old") +
+  theme(axis.text.x=element_text(angle=45,hjust=1))
+
+weightVsMRPPlot
+
+
+```
+
+### Category vs Catalog
+```{r}
+# Create barplot
+ggplot(data, aes(x = Category, fill = Catalog)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Barplot: Category vs Catalog",
+       x = "Category",
+       y = "Count") +
+  theme(legend.position = "top")
+```
+
+### Average Price Comparison
+```{r}
+# Assuming 'Category', 'Amazon.MRP', 'Myntra.MRP', 'Snapdeal.MRP', 'Paytm.MRP', 'Flipkart.MRP' columns exist in your dataset
+data_subset <- data %>% filter(!is.na(Category) & !is.na(Amazon.MRP) & !is.na(Myntra.MRP) & !is.na(Snapdeal.MRP) & !is.na(Paytm.MRP) & !is.na(Flipkart.MRP))
+
+average_prices_plot <- data_subset %>%
+  gather(key = "Platform", value = "Price", -Category) %>%
+  ggplot(aes(x = Category, y = Price, fill = Platform)) +
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.8) +
+  labs(title = "Average Prices Comparison Across Categories and Platforms",
+       x = "Category",
+       y = "Average Price") +
+   theme(axis.text.x=element_text(angle=45,hjust=1))
+
+average_prices_plot
+
+
+```
+
+### Interactive Price Comparison
+```{r}
+interactive_prices_plot <- renderPlotly({
+  plot_ly(data_subset, x = ~Category, y = ~Amazon.MRP, type = "bar", name = "Amazon") %>%
+    add_trace(x = ~Category, y = ~Myntra.MRP, type = "bar", name = "Myntra") %>%
+    add_trace(x = ~Category, y = ~Snapdeal.MRP, type = "bar", name = "Snapdeal") %>%
+    add_trace(x = ~Category, y = ~Paytm.MRP, type = "bar", name = "Paytm") %>%
+    add_trace(x = ~Category, y = ~Flipkart.MRP, type = "bar", name = "Flipkart") %>%
+    layout(title = "Interactive Prices Comparison Across Categories and Platforms",
+           xaxis = list(title = "Category"),
+           yaxis = list(title = "Average Price"))
+})
+
+
+interactive_prices_plot
+```
+
